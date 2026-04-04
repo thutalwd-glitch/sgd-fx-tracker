@@ -54,10 +54,10 @@ The Excel report will be saved to the `output/` folder automatically.
 
 ```
 sgd-fx-tracker/
-├── main.py            # Main script (heavily commented for readability)
-├── requirements.txt   # Python package dependencies
-├── README.md          # This file
-└── output/            # Generated reports saved here (not tracked by Git)
+├── main.py            
+├── requirements.txt   
+├── README.md         
+└── output/            
 ```
 
 ---
