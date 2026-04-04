@@ -1,0 +1,59 @@
+# =============================================================================
+# GitHub Actions Workflow — Auto Update SGD FX Report
+#
+# What this does:
+#   Every Monday at 9am Singapore time, GitHub's cloud servers will:
+#   1. Download your project code
+#   2. Install Python and the required libraries
+#   3. Run main.py (fetches fresh data, generates new charts + Excel)
+#   4. Save the updated output files back to your GitHub repo automatically
+#
+# You can also trigger it manually anytime from the GitHub website.
+# =============================================================================
+
+name: Weekly SGD FX Report Update
+
+on:
+  # --- Automatic schedule ---
+  # Runs every Monday at 1:00 AM UTC = 9:00 AM Singapore Time (SGT = UTC+8)
+  # Cron format: minute | hour | day-of-month | month | day-of-week
+  #              0        1       *               *       1  (1 = Monday)
+  schedule:
+    - cron: "0 1 * * 1"
+
+  # --- Manual trigger ---
+  # Lets you click "Run workflow" on GitHub whenever you want a fresh report
+  workflow_dispatch:
+
+jobs:
+  update-report:
+    runs-on: ubuntu-latest  # GitHub runs this on a free Linux cloud server
+
+    steps:
+      # Step 1: Download your repo code onto the cloud server
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Install Python 3.11
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Step 3: Install the libraries listed in requirements.txt
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Step 4: Run your script — this fetches fresh data and generates output files
+      - name: Run SGD FX Analyser
+        run: python main.py
+
+      # Step 5: Commit and push the new output files back to the repo
+      # This means your GitHub repo always has the latest charts and Excel report
+      - name: Commit updated report
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add output/
+          git diff --staged --quiet || git commit -m "Auto-update: SGD FX report $(date +'%Y-%m-%d')"
+          git push

@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+.venv/
+
+# Don't ignore the output folder — we WANT GitHub to store the latest report
+# (the workflow commits new output files every week)
+# output/   <-- intentionally NOT ignored
