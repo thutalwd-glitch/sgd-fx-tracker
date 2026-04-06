@@ -57,18 +57,22 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          BRANCH=${GITHUB_REF_NAME:-$(git rev-parse --abbrev-ref HEAD)}
+          if [ "$BRANCH" = "HEAD" ]; then
+            BRANCH="master"
+          fi
+          echo "Using branch: $BRANCH"
+          git fetch origin "$BRANCH"
+          git checkout -B "$BRANCH" "origin/$BRANCH"
+          git status --short --branch
+          git pull --rebase --autostash origin "$BRANCH"
           git add output/
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            BRANCH=$(git rev-parse --abbrev-ref HEAD)
-            if [ "$BRANCH" = "HEAD" ]; then
-              BRANCH="master"
-            fi
-            echo "Detected branch: $BRANCH"
-            git checkout -B "$BRANCH" "origin/$BRANCH"
             git commit -m "Auto-update: SGD FX report $(date +'%Y-%m-%d')"
             git fetch origin "$BRANCH"
             git pull --rebase --autostash origin "$BRANCH"
+            git status --short --branch
             git push origin HEAD:"$BRANCH"
           fi
