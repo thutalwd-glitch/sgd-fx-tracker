@@ -61,8 +61,9 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
+            BRANCH=$(git rev-parse --abbrev-ref HEAD)
+            echo "Detected branch: $BRANCH"
             git commit -m "Auto-update: SGD FX report $(date +'%Y-%m-%d')"
-            git fetch origin
-            git rebase origin/${GITHUB_REF_NAME}
-            git push origin HEAD:${GITHUB_REF_NAME}
+            git pull --rebase --autostash origin "$BRANCH"
+            git push origin HEAD:"$BRANCH"
           fi
