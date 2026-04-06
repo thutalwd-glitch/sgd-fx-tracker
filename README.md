@@ -93,3 +93,9 @@ This project was built as part of a data portfolio to demonstrate:
 - Financial data analysis using pandas
 - Data visualisation with matplotlib
 - Automated Excel reporting with openpyxl
+
+---
+
+## Acknowledgement
+
+This project was built with the assistance of [Claude](https://claude.ai) (Anthropic's AI assistant), which helped with code structure, chart design, and setting up the GitHub Actions automation. The analysis logic, financial context, and project direction were guided by me as part of learning how to apply Python to real-world data problems.

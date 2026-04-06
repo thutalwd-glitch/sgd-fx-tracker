@@ -14,6 +14,9 @@ matplotlib.use("Agg")  # IMPORTANT: Use non-interactive backend — required whe
                        # Without this line, matplotlib crashes in headless environments.
 
 import yfinance as yf          # Downloads financial data from Yahoo Finance (free)
+yf.set_tz_cache_location("/tmp")  # Fix for GitHub Actions: redirect yfinance's timezone
+                                   # cache to /tmp so it doesn't hit a "database is locked"
+                                   # error when running in the cloud.
 import pandas as pd            # The main tool for working with tables of data
 import matplotlib.pyplot as plt  # Used to draw charts/graphs
 import matplotlib.dates as mdates  # Helps format dates on chart axes
