@@ -1,6 +1,6 @@
 # SGD Exchange Rate Analyser
 
-A Python project created in collaboration with Claude by Anthropic that downloads 3 years of SGD exchange rate data, analyses trends, and generates a formatted Excel report with embedded charts.
+A Python project that downloads 3 years of SGD exchange rate data, analyses trends, and generates a formatted Excel report with embedded charts.
 
 Built by **Thuta Lin** as a portfolio project to demonstrate data analysis skills using Python and Excel.
 
