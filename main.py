@@ -5,36 +5,25 @@
 #              and exports a formatted Excel report.
 # =============================================================================
 
-# --- STEP 1: IMPORT LIBRARIES ---
-# Think of libraries like toolboxes. Each one gives us extra abilities.
-
 import matplotlib
-matplotlib.use("Agg")  # IMPORTANT: Use non-interactive backend — required when running
-                       # in the cloud (GitHub Actions) where there is no screen/display.
-                       # Without this line, matplotlib crashes in headless environments.
+matplotlib.use("Agg")  # IMPORTANT: Use non-interactive backend 
 
-import yfinance as yf          # Downloads financial data from Yahoo Finance (free)
-yf.set_tz_cache_location("/tmp")  # Fix for GitHub Actions: redirect yfinance's timezone
-                                   # cache to /tmp so it doesn't hit a "database is locked"
-                                   # error when running in the cloud.
-import pandas as pd            # The main tool for working with tables of data
+import yfinance as yf          
+yf.set_tz_cache_location("/tmp")  
+                                                         
+import pandas as pd            
 import matplotlib.pyplot as plt  # Used to draw charts/graphs
 import matplotlib.dates as mdates  # Helps format dates on chart axes
 from openpyxl import Workbook  # Creates and edits Excel files
-from openpyxl.styles import (  # These let us format cells (bold, colour, etc.)
+from openpyxl.styles import (  
     PatternFill, Font, Alignment, Border, Side
 )
-from openpyxl.utils import get_column_letter  # Converts column numbers to letters (e.g. 1 → "A")
+from openpyxl.utils import get_column_letter  
 from openpyxl.chart import LineChart, Reference  # For embedding charts inside Excel
-import os                      # Helps us work with file paths and folders
-from datetime import datetime  # Used to get today's date
+import os                      
+from datetime import datetime  
 
-# --- STEP 2: SETTINGS ---
-# These are the variables we might want to change in the future.
-# Keeping them here at the top makes the code easy to update.
-
-# The currency pairs we want to track.
-# In finance, "SGDUSD=X" means: how many USD does 1 SGD buy?
+# "SGDUSD=X": how many USD does 1 SGD buy
 TICKERS = {
     "SGDUSD=X": "SGD/USD",
     "SGDEUR=X": "SGD/EUR",
@@ -44,13 +33,10 @@ TICKERS = {
     "SGDCNY=X": "SGD/CNY",
 }
 
-PERIOD = "3y"          # How far back to fetch data (3 years)
-OUTPUT_FOLDER = "output"   # Folder where we save the Excel file
+PERIOD = "3y"         
+OUTPUT_FOLDER = "output"   
 
-
-# =============================================================================
 # SECTION 1: DOWNLOAD DATA
-# =============================================================================
 
 def download_data(tickers, period):
     """
@@ -74,16 +60,12 @@ def download_data(tickers, period):
     # Drop any rows where ALL values are missing (weekends/public holidays have no data)
     df = df.dropna(how="all")
 
-    # Make sure the date column is formatted as a proper date (not a string)
     df.index = pd.to_datetime(df.index)
 
     print(f"✅ Downloaded {len(df)} days of data ({df.index[0].date()} to {df.index[-1].date()})")
     return df
 
-
-# =============================================================================
-# SECTION 2: ANALYSE THE DATA
-# =============================================================================
+# SECTION 2: ANALYSE 
 
 def analyse_data(df):
     """
@@ -99,8 +81,7 @@ def analyse_data(df):
 
     results = {}
 
-    # --- Summary Statistics ---
-    # For each currency, calculate important numbers that describe the data
+    # Summary Statistics 
     summary_rows = []
     for col in df.columns:
         series = df[col].dropna()  # Remove any empty rows for this currency
@@ -120,8 +101,7 @@ def analyse_data(df):
             "3Y Average": round(series.mean(), 4),
             "3Y High": round(series.max(), 4),
             "3Y Low": round(series.min(), 4),
-            # Volatility = standard deviation = how much the rate jumps around daily
-            # Higher number = more unstable currency pair
+  
             "Volatility (Std Dev)": round(series.std(), 4),
             "YoY Change (%)": round(yoy_change, 2) if yoy_change is not None else "N/A",
         })
@@ -130,38 +110,25 @@ def analyse_data(df):
 
     # --- Monthly Averages ---
     # Group by year-month and calculate average rate for each month
-    # This smooths out day-to-day noise so we can see longer trends
     monthly = df.resample("ME").mean()  # "ME" = Month End
     monthly.index = monthly.index.strftime("%b %Y")  # Format as "Jan 2023"
     results["monthly"] = monthly
 
     # --- 30-Day Rolling Average ---
-    # Instead of showing every single day's rate (very noisy),
-    # we average the last 30 days. This shows the underlying trend more clearly.
     results["rolling"] = df.rolling(window=30).mean()
 
     # --- Indexed / Normalised Data (set to 100 at start) ---
-    # This is a standard finance technique called "indexing".
-    # We take the first valid value for each currency and divide every row by it,
-    # then multiply by 100. So every currency STARTS at 100.
-    # After that, if SGD/USD reads 105, it means USD has moved up 5% from the start.
-    # If SGD/JPY reads 112, it means JPY moved up 12%.
-    # This lets us compare currencies on the SAME scale — even though JPY is ~100x bigger.
     first_valid = df.apply(lambda col: col.dropna().iloc[0])  # First value per currency
     indexed = (df / first_valid) * 100                         # Normalise to 100
     results["indexed"] = indexed.rolling(window=30).mean()     # Smooth with 30-day average
 
     # --- Daily % Change ---
-    # How much did the rate move compared to yesterday? (as a percentage)
     results["pct_change"] = df.pct_change() * 100
 
     print("✅ Analysis complete")
     return results
 
-
-# =============================================================================
 # SECTION 3: CREATE CHARTS
-# =============================================================================
 
 def create_charts(df, results, output_folder):
     """
@@ -175,17 +142,10 @@ def create_charts(df, results, output_folder):
 
     chart_paths = []
 
-    # ---- CHART 1: Indexed Exchange Rate Trends (Normalised to 100) ----
-    #
-    # Instead of plotting raw rates (which makes JPY dominate at ~100x scale),
-    # we index every currency to 100 at the start date.
-    # This shows RELATIVE movement — which currency moved most, and in which direction.
-    #
-    # Reading the chart:
-    #   - All lines start at 100
-    #   - Above 100 = SGD has strengthened against that currency since the start
-    #   - Below 100 = SGD has weakened against that currency since the start
-    #   - A line at 112 means a +12% move; a line at 95 means a -5% move
+    # CHART 1: Indexed Exchange Rate Trends (Normalised to 100) 
+    # All lines start at 100
+    # Above 100 = SGD has strengthened against that currency since the start
+    # Below 100 = SGD has weakened against that currency since the start
 
     indexed = results["indexed"]  # 30-day smoothed, normalised data
 
@@ -200,7 +160,6 @@ def create_charts(df, results, output_folder):
     # Horizontal reference line at 100 (= no change from start)
     ax.axhline(100, color="black", linewidth=1, linestyle="--", alpha=0.5, label="Baseline (100)")
 
-    # Shade the area above/below 100 very lightly to make it easier to read
     ax.fill_between(indexed.index, 100, indexed.max(axis=1), alpha=0.03, color="green")
     ax.fill_between(indexed.index, indexed.min(axis=1), 100, alpha=0.03, color="red")
 
@@ -209,7 +168,6 @@ def create_charts(df, results, output_folder):
     ax.set_xlabel("Date", fontsize=11)
     ax.set_ylabel("Index (Start = 100)", fontsize=11)
 
-    # Add annotation explaining what the index means
     ax.text(0.01, 0.97,
             "Above 100 = SGD strengthened  |  Below 100 = SGD weakened  |  All currencies start at same scale",
             transform=ax.transAxes, fontsize=8, va="top", color="grey")
@@ -228,24 +186,21 @@ def create_charts(df, results, output_folder):
     chart_paths.append(chart1_path)
     print(f"  ✅ Chart 1 saved: {chart1_path}")
 
-    # ---- CHART 2: Year-over-Year Change (Bar Chart) — Improved ----
+    # CHART 2: Year-over-Year Change 
     summary = results["summary"]
 
     # Filter rows where YoY change exists and convert to float
     yoy_data = summary[summary["YoY Change (%)"] != "N/A"].copy()
     yoy_data["YoY Change (%)"] = yoy_data["YoY Change (%)"].astype(float)
 
-    # Sort bars from most negative → most positive (left to right tells a clearer story)
     yoy_data = yoy_data.sort_values("YoY Change (%)")
 
-    # Colour palette: muted tones look more professional than bright green/red
-    POS_COLOR = "#27ae60"   # Confident green
-    NEG_COLOR = "#c0392b"   # Firm red
+    POS_COLOR = "#27ae60"   
+    NEG_COLOR = "#c0392b"   
     colors = [POS_COLOR if v >= 0 else NEG_COLOR for v in yoy_data["YoY Change (%)"]]
 
     fig, ax = plt.subplots(figsize=(11, 5.5))
 
-    # Light grey plot background — modern dashboard look
     ax.set_facecolor("#f7f9fb")
     fig.patch.set_facecolor("#ffffff")
 
@@ -256,13 +211,10 @@ def create_charts(df, results, output_folder):
         edgecolor="white",
         linewidth=1.2,
         width=0.55,
-        zorder=3   # Draw bars on top of grid lines
+        zorder=3 
     )
 
-    # --- Value labels: always placed OUTSIDE the bar, never overlapping ---
-    # For positive bars: label sits above the bar top
-    # For negative bars: label sits below the bar bottom
-    # We add a small padding (offset) so the label never touches the bar
+    # Value labels
     y_range = yoy_data["YoY Change (%)"].max() - yoy_data["YoY Change (%)"].min()
     offset = y_range * 0.03  # 3% of the total range = consistent padding
 
@@ -318,10 +270,7 @@ def create_charts(df, results, output_folder):
 
     return chart_paths
 
-
-# =============================================================================
 # SECTION 4: EXPORT TO EXCEL
-# =============================================================================
 
 def export_to_excel(df, results, chart_paths, output_folder):
     """
@@ -334,9 +283,9 @@ def export_to_excel(df, results, chart_paths, output_folder):
     print("📁 Exporting to Excel...")
 
     # --- Helper: Define consistent colour/style theme ---
-    HEADER_FILL  = PatternFill("solid", fgColor="1F3864")   # Dark navy header
-    ACCENT_FILL  = PatternFill("solid", fgColor="D6E4F0")   # Light blue for alternate rows
-    HEADER_FONT  = Font(color="FFFFFF", bold=True, size=11)  # White bold text for headers
+    HEADER_FILL  = PatternFill("solid", fgColor="1F3864")   
+    ACCENT_FILL  = PatternFill("solid", fgColor="D6E4F0")   
+    HEADER_FONT  = Font(color="FFFFFF", bold=True, size=11)  
     NORMAL_FONT  = Font(size=10)
     CENTER       = Alignment(horizontal="center", vertical="center")
     LEFT         = Alignment(horizontal="left", vertical="center")
@@ -372,12 +321,9 @@ def export_to_excel(df, results, chart_paths, output_folder):
         for col_num, width in widths.items():
             ws.column_dimensions[get_column_letter(col_num)].width = width
 
-    # Create the workbook (Excel file)
     wb = Workbook()
 
-    # -----------------------------------------------------------------------
     # SHEET 1: Summary Statistics
-    # -----------------------------------------------------------------------
     ws1 = wb.active
     ws1.title = "Summary"
 
@@ -408,18 +354,15 @@ def export_to_excel(df, results, chart_paths, output_folder):
     # Set column widths for readability
     set_col_widths(ws1, {1: 18, 2: 14, 3: 14, 4: 12, 5: 12, 6: 20, 7: 18})
 
-    # -----------------------------------------------------------------------
     # SHEET 2: Historical Data (all daily rates)
-    # -----------------------------------------------------------------------
     ws2 = wb.create_sheet("Historical Data")
 
-    # We'll write dates + one column per currency
     ws2.cell(row=1, column=1, value="Date")
     for col_i, col_name in enumerate(df.columns, start=2):
         ws2.cell(row=1, column=col_i, value=col_name)
     style_header_row(ws2, 1, len(df.columns) + 1)
 
-    # Write each day's data
+    # Each day's data
     for row_i, (date, row_vals) in enumerate(df.iterrows(), start=2):
         ws2.cell(row=row_i, column=1, value=date.strftime("%Y-%m-%d"))
         for col_i, val in enumerate(row_vals, start=2):
@@ -429,9 +372,7 @@ def export_to_excel(df, results, chart_paths, output_folder):
     style_data_rows(ws2, 2, min(len(df) + 1, 51), len(df.columns) + 1)
     set_col_widths(ws2, {i: 14 for i in range(1, len(df.columns) + 2)})
 
-    # -----------------------------------------------------------------------
     # SHEET 3: Monthly Averages
-    # -----------------------------------------------------------------------
     ws3 = wb.create_sheet("Monthly Averages")
 
     monthly_df = results["monthly"]
@@ -449,9 +390,7 @@ def export_to_excel(df, results, chart_paths, output_folder):
     style_data_rows(ws3, 2, len(monthly_df) + 1, len(monthly_df.columns) + 1)
     set_col_widths(ws3, {i: 14 for i in range(1, len(monthly_df.columns) + 2)})
 
-    # -----------------------------------------------------------------------
     # SHEET 4: Charts
-    # -----------------------------------------------------------------------
     ws4 = wb.create_sheet("Charts")
 
     ws4.merge_cells("A1:N1")
@@ -460,21 +399,19 @@ def export_to_excel(df, results, chart_paths, output_folder):
     ws4["A1"].alignment = LEFT
     ws4.row_dimensions[1].height = 30
 
-    # Embed the PNG charts into the Excel sheet
-    # openpyxl lets us place images at specific cell coordinates
     from openpyxl.drawing.image import Image as XLImage
 
     if len(chart_paths) > 0 and os.path.exists(chart_paths[0]):
         img1 = XLImage(chart_paths[0])
         img1.width = 750
         img1.height = 320
-        ws4.add_image(img1, "A3")   # Place chart 1 at cell A3
+        ws4.add_image(img1, "A3")   
 
     if len(chart_paths) > 1 and os.path.exists(chart_paths[1]):
         img2 = XLImage(chart_paths[1])
         img2.width = 560
         img2.height = 280
-        ws4.add_image(img2, "A22")  # Place chart 2 below chart 1
+        ws4.add_image(img2, "A22")  
 
     # Save the workbook to the output folder
     filename = f"SGD_FX_Analysis_{datetime.now().strftime('%Y%m%d')}.xlsx"
@@ -484,23 +421,16 @@ def export_to_excel(df, results, chart_paths, output_folder):
     print(f"✅ Excel report saved: {filepath}")
     return filepath
 
-
-# =============================================================================
 # MAIN — This is where everything runs
-# =============================================================================
 
 if __name__ == "__main__":
-    # "__main__" means: only run this block if you run THIS file directly.
-    # (If someone imports this file as a library, this block won't run.)
-
+ 
     print("=" * 60)
     print("  SGD Exchange Rate Analyser")
     print("=" * 60)
 
-    # Make sure the output folder exists (create it if not)
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
-    # Run each step in order
     df = download_data(TICKERS, PERIOD)           # Step 1: Get data
     results = analyse_data(df)                    # Step 2: Analyse
     chart_paths = create_charts(df, results, OUTPUT_FOLDER)   # Step 3: Charts
